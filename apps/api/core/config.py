@@ -5,13 +5,15 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "QueueForge"
     
     # Configure via .env
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/queueforge"
-    REDIS_URL: str = "redis://localhost:6379/0"
+    FRONTEND_URL: str
+    DATABASE_URL: str
+    REDIS_URL: str
     
-    JWT_SECRET: str = "supersecretjwtkey_change_in_production"
+    JWT_SECRET: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8 # 8 days
     
     class Config:
-        env_file = ".env"
+        env_file = "../../.env"
+        extra = "ignore"
 
 settings = Settings()

@@ -18,7 +18,7 @@ export default function QueuesPage() {
   const { data: queues, isLoading } = useQuery({
     queryKey: ['queues'],
     queryFn: async () => {
-      const { data } = await api.get<Queue[]>('/queues');
+      const { data } = await api.get<Queue[]>('/queues/');
       return data;
     },
   });

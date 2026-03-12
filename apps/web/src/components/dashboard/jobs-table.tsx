@@ -27,7 +27,7 @@ export function JobsTable() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['jobs', statusFilter],
     queryFn: async () => {
-      const { data } = await api.get<Job[]>('/jobs', {
+      const { data } = await api.get<Job[]>('/jobs/', {
         params: { limit: 100, ...(statusFilter && { status: statusFilter }) },
       });
       return data;
@@ -36,7 +36,7 @@ export function JobsTable() {
   });
 
   const retryMutation = useMutation({
-    mutationFn: (id: number) => api.post(`/jobs/${id}/retry`),
+    mutationFn: (id: number) => api.post(`/jobs/${id}/retry/`),
     onSuccess: () => {
       toast.success('Job queued for retry');
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -45,7 +45,7 @@ export function JobsTable() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => api.post(`/jobs/${id}/cancel`),
+    mutationFn: (id: number) => api.post(`/jobs/${id}/cancel/`),
     onSuccess: () => {
       toast.success('Job cancelled');
       queryClient.invalidateQueries({ queryKey: ['jobs'] });

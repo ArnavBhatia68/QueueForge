@@ -9,37 +9,41 @@ import { User } from '@/types';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, setAuth, setUser } = useAuthStore();
-  const [isVerifying, setIsVerifying] = useState(true);
+  const { isAuthenticated, setAuth, setUser, logout } = useAuthStore();
+  const [isVerifying, setIsVerifying] = useState(!isAuthenticated);
 
   useEffect(() => {
+    // Always re-validate the JWT with the server on mount (security check).
+    // Because Zustand persist has already set isAuthenticated=true from the
+    // previous session, we don't redirect until we know the token is actually bad.
     const verifyAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        logout();
+        router.replace('/login');
+        return;
+      }
+
       try {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('No token');
-        
         const { data } = await api.get<User>('/auth/me');
         setUser(data);
         setAuth(true);
-      } catch (error) {
-        setAuth(false);
-        router.push('/login');
+      } catch {
+        logout();
+        router.replace('/login');
       } finally {
         setIsVerifying(false);
       }
     };
 
-    if (!isAuthenticated) {
-      verifyAuth();
-    } else {
-      setIsVerifying(false);
-    }
-  }, [isAuthenticated, router, setAuth, setUser]);
+    verifyAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isVerifying) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }

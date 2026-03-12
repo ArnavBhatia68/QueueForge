@@ -7,6 +7,7 @@ export const api = axios.create({
   },
 });
 
+// Attach Bearer token to every request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
@@ -17,10 +18,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Logout on 401 — but only when not on the login page (prevents redirect loops)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    if (
+      error.response?.status === 401 &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.includes('/login')
+    ) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }

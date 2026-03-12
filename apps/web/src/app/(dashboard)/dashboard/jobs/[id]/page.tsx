@@ -20,9 +20,10 @@ export default function JobDetailsPage() {
       const { data } = await api.get<JobDetail>(`/jobs/${id}`);
       return data;
     },
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
         // Stop polling if done
-        if (data?.status === 'succeeded' || data?.status === 'failed' || data?.status === 'cancelled') {
+        const jobStatus = query.state?.data?.status;
+        if (jobStatus === 'succeeded' || jobStatus === 'failed' || jobStatus === 'cancelled') {
             return false;
         }
         return 3000;

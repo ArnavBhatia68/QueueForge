@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
+from datetime import datetime, timedelta
+from typing import List
+from pydantic import BaseModel
 
 from core.database import get_db
 from models import Job, JobStatus, Queue, User
@@ -15,31 +18,23 @@ async def get_overview_analytics(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Total jobs
     total_result = await db.execute(select(func.count(Job.id)))
     total_jobs = total_result.scalar() or 0
 
-    # Running jobs
     running_result = await db.execute(select(func.count(Job.id)).where(Job.status == JobStatus.RUNNING))
     running_jobs = running_result.scalar() or 0
 
-    # Failed jobs
     failed_result = await db.execute(select(func.count(Job.id)).where(Job.status == JobStatus.FAILED))
     failed_jobs = failed_result.scalar() or 0
 
-    # Success rate
     success_result = await db.execute(select(func.count(Job.id)).where(Job.status == JobStatus.SUCCEEDED))
     success_jobs = success_result.scalar() or 0
-    
-    success_rate = 0.0
-    if total_jobs > 0:
-        # success rate of completed jobs
-        completed = success_jobs + failed_jobs
-        if completed > 0:
-            success_rate = (success_jobs / completed) * 100.0
 
-    # Avg processing time (started_at to completed_at where not null)
-    # Using python processing for simplicity since SQlite/Postgres differences in interval handling can be complex
+    success_rate = 0.0
+    completed = success_jobs + failed_jobs
+    if completed > 0:
+        success_rate = (success_jobs / completed) * 100.0
+
     stmt = select(Job.started_at, Job.completed_at).where(
         Job.status == JobStatus.SUCCEEDED,
         Job.started_at.isnot(None),
@@ -47,7 +42,7 @@ async def get_overview_analytics(
     )
     times_result = await db.execute(stmt)
     times = times_result.all()
-    
+
     avg_processing_time_ms = 0.0
     if times:
         total_ms = sum(
@@ -62,3 +57,65 @@ async def get_overview_analytics(
         success_rate=round(success_rate, 2),
         avg_processing_time_ms=round(avg_processing_time_ms, 2)
     )
+
+
+class DailyJobCount(BaseModel):
+    date: str
+    succeeded: int
+    failed: int
+    queued: int
+
+
+@router.get("/daily", response_model=List[DailyJobCount])
+async def get_daily_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Last 7 days of job counts grouped by date and status."""
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    stmt = select(Job.created_at, Job.status).where(Job.created_at >= cutoff)
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    # Build a 7-day map indexed by date string
+    days: dict[str, dict[str, int]] = {}
+    for i in range(7):
+        day = (datetime.utcnow() - timedelta(days=6 - i)).strftime("%Y-%m-%d")
+        days[day] = {"succeeded": 0, "failed": 0, "queued": 0}
+
+    for row in rows:
+        day = row.created_at.strftime("%Y-%m-%d")
+        if day not in days:
+            continue
+        if row.status == JobStatus.SUCCEEDED:
+            days[day]["succeeded"] += 1
+        elif row.status == JobStatus.FAILED:
+            days[day]["failed"] += 1
+        else:
+            days[day]["queued"] += 1
+
+    return [
+        DailyJobCount(date=day, **counts) for day, counts in sorted(days.items())
+    ]
+
+
+class RecentJobItem(BaseModel):
+    id: int
+    type: str
+    queue_name: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/recent", response_model=List[RecentJobItem])
+async def get_recent_jobs(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Last 10 jobs for the activity feed."""
+    stmt = select(Job).order_by(Job.created_at.desc()).limit(10)
+    result = await db.execute(stmt)
+    return result.scalars().all()

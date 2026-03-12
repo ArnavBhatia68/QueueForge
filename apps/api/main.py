@@ -5,13 +5,14 @@ from api.v1 import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+
 
 # Set all CORS enabled origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this
+    allow_origins=[settings.FRONTEND_URL], # Reads from ENV or defaults to localhost
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

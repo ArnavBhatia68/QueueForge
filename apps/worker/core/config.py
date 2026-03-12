@@ -6,10 +6,11 @@ class Settings(BaseSettings):
     POLL_INTERVAL_SEC: float = 1.0
     
     # Configure via .env
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/queueforge"
-    REDIS_URL: str = "redis://localhost:6379/0"
+    DATABASE_URL: str
+    REDIS_URL: str
     
     class Config:
-        env_file = ".env"
+        env_file = "../../.env"
+        extra = "ignore"
 
 settings = Settings()
