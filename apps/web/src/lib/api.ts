@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-const baseURL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || '/api/v1';
+const isProd = process.env.NODE_ENV === 'production';
+
+const baseURL = isProd
+  ? process.env.NEXT_PUBLIC_API_URL!.replace(/\/$/, '')
+  : process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || '/api/v1';
 
 export const api = axios.create({
   baseURL,
@@ -10,7 +13,6 @@ export const api = axios.create({
   },
 });
 
-// Attach Bearer token to every request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
@@ -21,7 +23,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Logout on 401 — but only when not on the login page
 api.interceptors.response.use(
   (response) => response,
   (error) => {
